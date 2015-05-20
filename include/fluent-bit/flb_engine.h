@@ -23,8 +23,8 @@
 #include <fluent-bit/flb_config.h>
 #include <fluent-bit/flb_output.h>
 
-#define FLB_ENGINE_READ    EPOLLIN
-#define FLB_ENGINE_WRITE   EPOLLOUT
+#define FLB_ENGINE_READ    EVFILT_READ
+#define FLB_ENGINE_WRITE   EVFILT_WRITE
 
 int flb_engine_start(struct flb_config *config);
 int flb_engine_flush(struct flb_config *config,

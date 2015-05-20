@@ -20,6 +20,7 @@
 #ifndef FLB_NETWORK_H
 #define FLB_NETWORK_H
 
+#include <sys/socket.h>
 #include <netinet/tcp.h>
 
 #ifndef TCP_FASTOPEN

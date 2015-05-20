@@ -50,7 +50,7 @@ int flb_net_socket_reset(int sockfd)
 int flb_net_socket_tcp_nodelay(int sockfd)
 {
     int on = 1;
-    return setsockopt(sockfd, SOL_TCP, TCP_NODELAY, &on, sizeof(on));
+    return setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
 }
 
 int flb_net_socket_nonblocking(int sockfd)
@@ -72,7 +72,7 @@ int flb_net_socket_nonblocking(int sockfd)
 int flb_net_socket_tcp_fastopen(int sockfd)
 {
     int qlen = 5;
-    return setsockopt(sockfd, SOL_TCP, TCP_FASTOPEN, &qlen, sizeof(qlen));
+    return setsockopt(sockfd, IPPROTO_TCP, TCP_FASTOPEN, &qlen, sizeof(qlen));
 }
 
 int flb_net_socket_create()
@@ -194,7 +194,7 @@ int flb_net_accept(int server_fd)
     struct sockaddr sock_addr;
     socklen_t socket_size = sizeof(struct sockaddr);
 
-    remote_fd = accept4(server_fd, &sock_addr, &socket_size,
+    remote_fd = paccept(server_fd, &sock_addr, &socket_size, NULL,
                         SOCK_NONBLOCK | SOCK_CLOEXEC);
 
     if (remote_fd == -1) {
