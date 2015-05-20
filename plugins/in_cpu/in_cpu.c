@@ -39,9 +39,9 @@ static inline double proc_cpu_load()
         return -1;
     }
 
-    ret = fscanf(f, " cpu %lf %lf %lf %lf %lf %lf %lf",
-                 &user, &nice, &system, &idle, &iowait, &irq, &softirq);
-    if (ret != 7) {
+    ret = fscanf(f, "cpu %lf %lf %lf %lf",
+                 &user, &nice, &system, &idle);
+    if (ret != 4) {
         fclose(f);
         return -1;
     }
