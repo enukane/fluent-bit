@@ -186,7 +186,6 @@ static int flb_engine_handle_event(int fd, int mask, struct flb_config *config)
     if (mask == FLB_ENGINE_READ) {
         /* Check if we need to flush */
         if (config->flush_fd == fd) {
-            consume_byte(fd);
             flb_engine_flush(config, NULL, config->output);
             return 0;
         }
@@ -199,7 +198,6 @@ static int flb_engine_handle_event(int fd, int mask, struct flb_config *config)
                                              collector->plugin->in_context);
             }
             else if (collector->fd_timer == fd) {
-                consume_byte(fd);
                 return collector->cb_collect(config,
                                              collector->plugin->in_context);
             }
