@@ -30,7 +30,7 @@
 #include <inttypes.h>
 
 #include <msgpack.h>
-#include <fluent-bit/in_kmsg.h>
+#include "in_kmsg.h"
 #include <fluent-bit/flb_input.h>
 #include <fluent-bit/flb_utils.h>
 #include <fluent-bit/flb_engine.h>
