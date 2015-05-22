@@ -1,0 +1,13 @@
+language: c
+compiler:
+  - gcc
+  - clang
+
+notifications:
+  irc: "irc.freenode.net#fluent-bit"
+
+before_script:
+  - cd build
+  - cmake -DWITH_ALL=1 ../
+
+script: make

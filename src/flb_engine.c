@@ -29,7 +29,6 @@
 #include <fluent-bit/flb_error.h>
 #include <fluent-bit/flb_utils.h>
 #include <fluent-bit/flb_config.h>
-#include <fluent-bit/flb_network.h>
 #include <fluent-bit/flb_engine.h>
 
 #define FLB_TIMER_FD 0xDEADBEAF
@@ -103,16 +102,6 @@ int flb_engine_flush(struct flb_config *config,
         out = tmp;
     }
 
-    /*
-     * Lazy flush: it does a connect in blocking mode, this needs
-     * to be changed later and be integrated with the main loop.
-     */
-    fd = flb_net_tcp_connect(out->host, out->port);
-    if (fd == -1) {
-        flb_error("Error connecting to output service");
-        return -1;
-    }
-
     mk_list_foreach(head, &config->inputs) {
         in = mk_list_entry(head, struct flb_input_plugin, _head);
 
@@ -159,7 +148,7 @@ int flb_engine_flush(struct flb_config *config,
             }
         }
     }
-    close(fd);
+
     return 0;
 }
 

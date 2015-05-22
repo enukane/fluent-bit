@@ -25,7 +25,7 @@
 #include <fluent-bit/flb_utils.h>
 #include <fluent-bit/flb_network.h>
 
-#include "out_fluentd.h"
+#include "fluentd.h"
 
 struct flb_output_plugin out_fluentd_plugin;
 
@@ -65,9 +65,8 @@ int cb_fluentd_pre_run(void *out_context, struct flb_config *config)
 
 int cb_fluentd_flush(void *data, size_t bytes, void *out_context)
 {
-    int fd;
-    struct flb_out_fluentd_config *ctx = out_context;
-    (void) ctx;
+    int fd, len;
+    (void) out_context;
 
     fd = flb_net_tcp_connect(out_fluentd_plugin.host,
                              out_fluentd_plugin.port);
@@ -76,7 +75,10 @@ int cb_fluentd_flush(void *data, size_t bytes, void *out_context)
     }
 
     /* FIXME: plain TCP write */
-    return write(fd, data, bytes);
+    len = write(fd, data, bytes);
+    close(fd);
+
+    return len;
 }
 
 /* Plugin reference */
