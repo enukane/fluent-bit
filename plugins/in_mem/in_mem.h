@@ -17,24 +17,25 @@
  *  limitations under the License.
  */
 
-#ifndef FLB_PLUGINS_H
-#define FLB_PLUGINS_H
+#ifndef FLB_IN_MEM_H
+#define FLB_IN_MEM_H
 
-#include <mk_core/mk_core.h>
-#include <fluent-bit/flb_input.h>
-#include <fluent-bit/flb_output.h>
 #include <fluent-bit/flb_config.h>
+#include <fluent-bit/flb_input.h>
+#include <fluent-bit/flb_utils.h>
+#include <msgpack.h>
 
-@FLB_IN_PLUGINS_DECL@
-@FLB_OUT_PLUGINS_DECL@
+#define IN_MEM_COLLECT_SEC  1
+#define IN_MEM_COLLECT_NSEC 0
 
-void flb_register_plugins(struct flb_config *config)
-{
-    struct flb_input_plugin *in;
-    struct flb_output_plugin *out;
+struct flb_in_mem_config {
+    int  tag_len;
+    char tag[32];
+    int  idx;
+    msgpack_packer  pckr;
+    msgpack_sbuffer sbuf;
+};
 
-@FLB_IN_PLUGINS_ADD@
-@FLB_OUT_PLUGINS_ADD@
-}
+extern struct flb_input_plugin in_mem_plugin;
 
 #endif

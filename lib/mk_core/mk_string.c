@@ -1,26 +1,23 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
-/*  Monkey HTTP Daemon
- *  ------------------
- *  Copyright (C) 2001-2012, Eduardo Silva P. <edsiper@gmail.com>
+/*  Monkey HTTP Server
+ *  ==================
+ *  Copyright 2001-2015 Monkey Software LLC <eduardo@monkey.io>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Library General Public License for more details.
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  */
 
 #define _GNU_SOURCE
-#include <stdio.h>
 #include <string.h>
 
 #include <ctype.h>
@@ -28,7 +25,28 @@
 #include <stdarg.h>
 
 #include "mk_macros.h"
+#include "mk_utils.h"
+#include "mk_memory.h"
 #include "mk_string.h"
+
+#include <stdio.h>
+
+/* OSX lacks of memrchr() */
+#if defined (__APPLE__)
+void *memrchr(const void *s, int c, size_t n)
+{
+    const unsigned char *cp;
+
+    if (n != 0) {
+        cp = (unsigned char *)s + n;
+        do {
+            if (*(--cp) == (unsigned char)c)
+                return((void *)cp);
+        } while (--n != 0);
+    }
+    return(NULL);
+}
+#endif
 
 /*
  * Base function for search routines, it accept modifiers to enable/disable
@@ -152,7 +170,7 @@ char *mk_string_dup(const char *s)
         return NULL;
 
     len = strlen(s);
-    p = malloc(len + 1);
+    p = mk_mem_malloc(len + 1);
     memcpy(p, s, len);
     p[len] = '\0';
 
@@ -171,7 +189,7 @@ struct mk_list *mk_string_split_line(const char *line)
         return NULL;
     }
 
-    list = malloc(sizeof(struct mk_list));
+    list = mk_mem_malloc(sizeof(struct mk_list));
     mk_list_init(list);
 
     len = strlen(line);
@@ -198,7 +216,7 @@ struct mk_list *mk_string_split_line(const char *line)
         }
 
         /* Alloc node */
-        new = malloc(sizeof(struct mk_string_line));
+        new = mk_mem_malloc(sizeof(struct mk_string_line));
         new->val = val;
         new->len = val_len;
 
@@ -217,11 +235,11 @@ void mk_string_split_free(struct mk_list *list)
     mk_list_foreach_safe(head, tmp, list) {
         entry = mk_list_entry(head, struct mk_string_line, _head);
         mk_list_del(&entry->_head);
-        free(entry->val);
-        free(entry);
+        mk_mem_free(entry->val);
+        mk_mem_free(entry);
     }
 
-    free(list);
+    mk_mem_free(list);
 }
 
 char *mk_string_build(char **buffer, unsigned long *len,
@@ -234,7 +252,8 @@ char *mk_string_build(char **buffer, unsigned long *len,
     size_t alloc = 0;
 
     /* *buffer *must* be an empty/NULL buffer */
-    *buffer = (char *) malloc(_mem_alloc);
+    mk_bug(*buffer);
+    *buffer = (char *) mk_mem_malloc(_mem_alloc);
 
     if (!*buffer) {
         return NULL;
@@ -250,7 +269,7 @@ char *mk_string_build(char **buffer, unsigned long *len,
     }
 
     if ((unsigned int) length >= alloc) {
-        ptr = realloc(*buffer, length + 1);
+        ptr = mk_mem_realloc(*buffer, length + 1);
         if (!ptr) {
             return NULL;
         }
@@ -324,6 +343,66 @@ int mk_string_trim(char **str)
     return 0;
 }
 
+uint32_t digits10(uint64_t v) {
+    if (v < 10) return 1;
+    if (v < 100) return 2;
+    if (v < 1000) return 3;
+    if (v < 1000000000000UL) {
+        if (v < 100000000UL) {
+            if (v < 1000000) {
+                if (v < 10000) return 4;
+                return 5 + (v >= 100000);
+            }
+            return 7 + (v >= 10000000UL);
+        }
+        if (v < 10000000000UL) {
+            return 9 + (v >= 1000000000UL);
+        }
+        return 11 + (v >= 100000000000UL);
+    }
+    return 12 + digits10(v / 1000000000000UL);
+}
+
+int mk_string_itop(uint64_t value, mk_ptr_t *p)
+{
+    static const char digits[201] =
+        "0001020304050607080910111213141516171819"
+        "2021222324252627282930313233343536373839"
+        "4041424344454647484950515253545556575859"
+        "6061626364656667686970717273747576777879"
+        "8081828384858687888990919293949596979899";
+
+    uint32_t const length = digits10(value);
+    uint32_t next = length - 1;
+    char *dst = p->data;
+
+    while (value >= 100) {
+        int const i = (value % 100) * 2;
+        value /= 100;
+        dst[next] = digits[i + 1];
+        dst[next - 1] = digits[i];
+        next -= 2;
+    }
+
+    /* Handle last 1-2 digits */
+    if (value < 10) {
+        dst[next] = '0' + (uint32_t) value;
+    }
+    else {
+        int i = (uint32_t) value * 2;
+        dst[next] = digits[i + 1];
+        dst[next - 1] = digits[i];
+    }
+
+    dst = p->data + length;
+    *dst++ = '\r';
+    *dst++ = '\n';
+    *dst++ = '\0';
+
+    p->len = (dst - p->data - 1);
+    return p->len;
+}
+
 /* Return a buffer with a new string from string */
 char *mk_string_copy_substr(const char *string, int pos_init, int pos_end)
 {
@@ -338,7 +417,7 @@ char *mk_string_copy_substr(const char *string, int pos_init, int pos_end)
     if (size <= 2)
         size = 4;
 
-    buffer = malloc(size);
+    buffer = mk_mem_malloc(size);
 
     if (!buffer) {
         return NULL;

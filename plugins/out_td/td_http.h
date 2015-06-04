@@ -17,24 +17,14 @@
  *  limitations under the License.
  */
 
-#ifndef FLB_PLUGINS_H
-#define FLB_PLUGINS_H
+#ifndef FLB_OUT_TD_HTTP_H
+#define FLB_OUT_TD_HTTP_H
 
-#include <mk_core/mk_core.h>
-#include <fluent-bit/flb_input.h>
-#include <fluent-bit/flb_output.h>
 #include <fluent-bit/flb_config.h>
+#include "td_config.h"
 
-@FLB_IN_PLUGINS_DECL@
-@FLB_OUT_PLUGINS_DECL@
-
-void flb_register_plugins(struct flb_config *config)
-{
-    struct flb_input_plugin *in;
-    struct flb_output_plugin *out;
-
-@FLB_IN_PLUGINS_ADD@
-@FLB_OUT_PLUGINS_ADD@
-}
+char *td_http_request(void *data, size_t len,
+                      size_t *out_len,
+                      struct flb_out_td_config *ctx, struct flb_config *config);
 
 #endif

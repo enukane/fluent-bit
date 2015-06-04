@@ -1,8 +1,8 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
-/*  Fluent Bit
- *  ==========
- *  Copyright (C) 2015 Treasure Data Inc.
+/*  Monkey HTTP Server
+ *  ==================
+ *  Copyright 2001-2015 Monkey Software LLC <eduardo@monkey.io>
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,24 +17,15 @@
  *  limitations under the License.
  */
 
-#ifndef FLB_PLUGINS_H
-#define FLB_PLUGINS_H
+#ifndef MK_CORE_H
+#define MK_CORE_H
 
-#include <mk_core/mk_core.h>
-#include <fluent-bit/flb_input.h>
-#include <fluent-bit/flb_output.h>
-#include <fluent-bit/flb_config.h>
-
-@FLB_IN_PLUGINS_DECL@
-@FLB_OUT_PLUGINS_DECL@
-
-void flb_register_plugins(struct flb_config *config)
-{
-    struct flb_input_plugin *in;
-    struct flb_output_plugin *out;
-
-@FLB_IN_PLUGINS_ADD@
-@FLB_OUT_PLUGINS_ADD@
-}
+#include "include/mk_iov.h"
+#include "include/mk_event.h"
+#include "include/mk_rbtree.h"
+#include "include/mk_rconf.h"
+#include "include/mk_string.h"
+#include "include/mk_macros.h"
+#include "include/mk_utils.h"
 
 #endif

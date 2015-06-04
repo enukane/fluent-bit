@@ -32,16 +32,17 @@ set_target_properties(fluent-bit-static PROPERTIES
   OUTPUT_NAME fluent-bit)
 
 # Link dependencies to Fluent-Bit library core
-target_link_libraries(fluent-bit-shared msgpack mk_config jsmn ${FLB_PLUGINS})
-target_link_libraries(fluent-bit-static msgpack mk_config jsmn ${FLB_PLUGINS})
+target_link_libraries(fluent-bit-shared msgpack mk_core jsmn ${FLB_PLUGINS})
+target_link_libraries(fluent-bit-static msgpack mk_core jsmn ${FLB_PLUGINS})
 
 # Library install routines
 install(TARGETS fluent-bit-shared LIBRARY DESTINATION lib)
 
 # Executable
 if(NOT WITHOUT_BIN)
+  find_package (Threads)
   add_executable(fluent-bit-bin fluent-bit.c)
-  target_link_libraries(fluent-bit-bin fluent-bit-static)
+  target_link_libraries(fluent-bit-bin fluent-bit-static ${CMAKE_THREAD_LIBS_INIT})
   set_target_properties(fluent-bit-bin
     PROPERTIES OUTPUT_NAME fluent-bit)
   install(TARGETS fluent-bit-bin RUNTIME DESTINATION bin)

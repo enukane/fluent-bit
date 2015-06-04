@@ -21,8 +21,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 #include <sys/event.h>
 
+#include <mk_core/mk_core.h>
 #include <fluent-bit/flb_macros.h>
 #include <fluent-bit/flb_input.h>
 #include <fluent-bit/flb_output.h>
@@ -30,55 +32,6 @@
 #include <fluent-bit/flb_utils.h>
 #include <fluent-bit/flb_config.h>
 #include <fluent-bit/flb_engine.h>
-
-#define FLB_TIMER_FD 0xDEADBEAF
-
-static int timer_fd(int kq, time_t sec, long nsec)
-{
-    int ret;
-    int64_t millisec = 0;
-    static int count = 0;
-    int fd;
-    static struct kevent kev;
-
-    fd = FLB_TIMER_FD + count;
-    count++;
-
-    millisec = sec * 1000 + nsec / (1000 * 1000);
-
-    EV_SET(&kev, fd, EVFILT_TIMER, EV_ADD, 0, millisec, 0);
-    ret = kevent(kq, &kev, 1, NULL, 0, NULL);
-
-    return fd;
-}
-
-static int flb_engine_loop_create()
-{
-    int efd;
-
-    efd = kqueue();
-    if (efd == -1) {
-        perror("kqueue");
-        return -1;
-    }
-
-    return efd;
-}
-
-static int flb_engine_loop_add(int efd, int fd, int mode)
-{
-    int ret;
-    struct kevent kev;
-
-    EV_SET(&kev, fd, EVFILT_READ, EV_ADD, 0, 0, 0);
-    ret = kevent(efd, &kev, 1, NULL, 0, NULL);
-    if (ret == -1) {
-        perror("kevent");
-        return -1;
-    }
-
-    return ret;
-}
 
 int flb_engine_flush(struct flb_config *config,
                      struct flb_input_plugin *in_force,
@@ -117,7 +70,8 @@ int flb_engine_flush(struct flb_config *config,
                 }
 
                 bytes = config->output->cb_flush(buf, size,
-                                                 config->output->out_context);
+                                                 config->output->out_context,
+                                                 config);
                 if (bytes <= 0) {
                     flb_error("Error flushing data");
                 }
@@ -198,15 +152,11 @@ static int flb_engine_handle_event(int fd, int mask, struct flb_config *config)
 
 int flb_engine_start(struct flb_config *config)
 {
-    int i;
     int fd;
     int ret;
-    int mask;
-    int loop; /* kq */
-    int n;
-    int size = 64;
-    struct kevent kev;
     struct mk_list *head;
+    struct mk_event *event;
+    struct mk_event_loop *evl;
     struct flb_input_collector *collector;
 
     flb_info("starting engine");
@@ -219,13 +169,15 @@ int flb_engine_start(struct flb_config *config)
     flb_output_pre_run(config);
 
     /* main loop */
-    loop = flb_engine_loop_create();
-    if (loop == -1) {
+    evl = mk_event_loop_create(256);
+    if (!evl) {
         return -1;
     }
 
     /* Create and register the timer fd for flush procedure */
-    config->flush_fd = timer_fd(loop, config->flush, 0);
+    event = malloc(sizeof(struct mk_event));
+    event->mask = MK_EVENT_EMPTY;
+    config->flush_fd = mk_event_timeout_create(evl, config->flush, event);
     if (config->flush_fd == -1) {
         flb_utils_error(FLB_ERR_CFG_FLUSH_CREATE);
     }
@@ -235,15 +187,18 @@ int flb_engine_start(struct flb_config *config)
         collector = mk_list_entry(head, struct flb_input_collector, _head);
 
         if (collector->type == FLB_COLLECT_TIME) {
-            fd = timer_fd(loop, collector->seconds, collector->nanoseconds);
+            event = malloc(sizeof(struct mk_event));
+            event->mask = MK_EVENT_EMPTY;
+            fd = mk_event_timeout_create(evl, collector->seconds, event);
             if (fd == -1) {
                 continue;
             }
             collector->fd_timer = fd;
         }
         else if (collector->type & (FLB_COLLECT_FD_EVENT | FLB_COLLECT_FD_SERVER)) {
-            ret = flb_engine_loop_add(loop, collector->fd_event,
-                                      FLB_ENGINE_READ);
+            event = malloc(sizeof(struct mk_event));
+            event->mask = MK_EVENT_EMPTY;
+            ret = mk_event_add(evl, collector->fd_event, 0, MK_EVENT_READ, event);
             if (ret == -1) {
                 close(fd);
                 continue;
@@ -252,7 +207,9 @@ int flb_engine_start(struct flb_config *config)
     }
 
     while (1) {
-        n = kevent(loop, NULL, 0, &kev, 1, NULL);
-        flb_engine_handle_event(kev.ident, FLB_ENGINE_READ, config);
+        mk_event_wait(evl);
+        mk_event_foreach(event, evl) {
+            flb_engine_handle_event(event->fd, event->mask, config);
+        }
     }
 }
